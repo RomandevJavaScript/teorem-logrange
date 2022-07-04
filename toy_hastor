@@ -1,0 +1,160 @@
+# This Python file uses the following encoding: utf-8
+from copy import deepcopy
+from hashlib import sha256
+
+class Blockchain:
+
+    def __init__(self, difficulty = 1):
+        genesis_block = GenesisBlock()
+        self.chain_tail = genesis_block
+        self.geneis_block = genesis_block
+        self.difficulty = difficulty
+
+    def is_genesis(self, block):
+        return self.geneis_block == block
+
+    def add_block(self, block):
+        assert self.chain_tail == block.last_block
+        assert block.sign == Block.sign(block, self.chain_tail)
+        self.chain_tail = block
+
+    def add_data_as_block(self, data):
+        return self.add_block(Block(self.chain_tail, data))
+
+    def validate(self):
+        block = self.chain_tail
+        while True:
+            assert block.sign == Block.sign(block, block.last_block)
+            assert self.valid_proof_of_work(block.sign)
+            block = block.last_block
+            if self.is_genesis(block):
+                return True
+
+    def valid_proof_of_work(self, sign):
+        return sign[:self.difficulty] == "a" * self.difficulty
+
+    def show(self):
+        block = self.chain_tail
+        chain = []
+        while True:
+            chain.insert(0, block)
+            if self.is_genesis(block):
+                break
+            block = block.last_block
+        print "{: >65}\t{: >30}\t{: >30}\t{: >30}".format(*("SIGN", "DATA", "COST", "LAST BLOCK SIGN"))
+        for block in chain:
+            print(block)
+
+class Block:
+
+    @classmethod
+    def sign_raw(cls, data, last_sign, proof_of_work):
+        return sha256(last_sign + data + proof_of_work ).hexdigest()
+
+    @classmethod
+    def sign(cls, block, last_block):
+        return Block.sign_raw(block.data, last_block.sign, block.proof_of_work)
+
+    def __init__(self, last_block, data, proof_of_work):
+        self.data = data
+        self.last_block = last_block
+        self.proof_of_work = proof_of_work
+        self.sign = Block.sign_raw(data, last_block.sign, proof_of_work)
+
+
+    def __eq__(self, other):
+        return self.sign == other.sign
+
+    def __str__(self):
+        return "{: >20}\t{: >30}\t{: >30}\t{: >30}".format(*(self.sign, self.data, self.proof_of_work, self.last_block.sign))
+
+class GenesisBlock(Block):
+    def __init__(self):
+        self.sign = "I AM GENESIS"
+        self.data = "I AM GENESIS"
+
+
+    def __str__(self):
+        return "I\tAM\tGENESIS"
+
+
+
+class Node:
+    def mine_block(self, blockchain, last_block, data):
+        cost = 0
+        while True:
+            cost += 1
+            candidate = Block.sign_raw(data, last_block.sign, str(cost))
+            if blockchain.valid_proof_of_work(candidate):
+                candidate_block = Block(last_block, data, str(cost))
+                blockchain.add_block(candidate_block)
+                return candidate_block
+
+
+class EvilNode(Node):
+    def fake_blockchain(self, blockchain, steps_back, evil_data):
+         corrupted_chain = deepcopy(blockchain)
+         tamper_block = self.get_block(blockchain.chain_tail, steps_back)
+         remaining_data = self.get_data(blockchain.chain_tail, steps_back-1)
+
+         corrupted_chain.chain_tail = tamper_block
+         evil_block = self.mine_block(corrupted_chain, tamper_block, evil_data)
+         fake_chain = []
+         fake_block = evil_block
+         total_cost = evil_block.proof_of_work
+         for data in remaining_data:
+             fake_block = self.mine_block(corrupted_chain, fake_block, data)
+             total_cost += fake_block.proof_of_work
+
+         corrupted_chain = deepcopy(blockchain)
+         corrupted_chain.chain_tail = fake_block
+         return corrupted_chain, total_cost
+
+
+
+    def get_block(self, block, steps_back):
+        if steps_back == 0:
+            return block
+        else:
+            return self.get_block(block.last_block, steps_back -1)
+
+    def get_data(self, block, steps_back):
+        if steps_back == 0:
+            return [block.data]
+        else:
+            return self.get_data(block.last_block, steps_back -1) + [block.data]
+
+
+def main():
+    print "Creating blockchain\n\n"
+
+    blockchain = Blockchain(3)
+    node = Node()
+    text = [
+        "Det blir godt å sove",
+        "Sove hele natten",
+        "Helt til neste dag",
+        "Det blir godt å sove",
+        "Sove hele natten",
+        "Helt til neste dag"
+    ]
+    for data in text:
+        node.mine_block(blockchain, blockchain.chain_tail, data)
+
+    print "Valid Blockchain" if blockchain.validate() else "Invalid blockchain"
+    print "\n\n\n"
+    blockchain.show()
+    print "\n\n\n"
+    print "Evil Node enters the game"
+    print "\n\n\n"
+    evil_node = EvilNode()
+    corrupted_chain, total_cost = evil_node.fake_blockchain(blockchain, 3, "C̷̪͈͈͉̘͓̲̱͚̗̀̄͂͑͆̅̒̋̉̉͊̕͝o̷̲͔̊̈́̊̓͆͑̈́͊͑̑̈́̈̽̓̕r̸̞̊̇ȑ̶̨͉́̀̃̓̌̀̉̈́̑̈́͗͘ṵ̶̧̲̿̃̓̃p̶̡͕̠̺̭̼͙̜̄͋t̴̛̙̺͎̟̘̳̃̃͐̋͑̾͑͐͋͝e̶̻̳͗́͋̔̍̈͋́̚͠͠d̸̛͕͕͚͇̰̞̈́̎̂")
+    print "Valid Blockchain" if corrupted_chain.validate() else "Invalid blockchain"
+
+    corrupted_chain.show()
+    print "\n\n\n"
+    print "It cost evil node " + str(total_cost) + " hashes be evil"
+
+
+if __name__ == '__main__':
+    main()

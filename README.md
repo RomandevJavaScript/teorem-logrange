@@ -1,5 +1,5 @@
 # teorem-logrange
 ------from matematic----------------    
 ------algebra big number------------    
-------matem postro nove-------------
+------matem postro nove-------------    
 ------make counter matem static----     

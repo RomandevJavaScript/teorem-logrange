@@ -1,4 +1,4 @@
 # teorem-logrange
 ------from matematic----------------    
-------algebra big number------------
+------algebra big number------------    
 ------matem postro nove-------------

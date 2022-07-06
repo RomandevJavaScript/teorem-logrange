@@ -1,3 +1,3 @@
 # teorem-logrange
---from matematic------'/n'    
+------from matematic----------------    
 ------algebra big number------------
